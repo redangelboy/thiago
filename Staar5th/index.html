@@ -62,8 +62,25 @@ body{
 
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px;}
 .stat-box{background:var(--g50);border:1.5px solid var(--g200);border-radius:var(--rs);padding:11px 8px;text-align:center;}
+.stat-box.stat-clickable{
+  cursor:pointer;transition:transform .12s,box-shadow .12s,border-color .12s;
+  width:100%;font:inherit;color:inherit;display:block;text-align:center;
+}
+.stat-box.stat-clickable:hover{border-color:var(--blue-m);box-shadow:0 4px 14px rgba(37,99,235,.12);}
+.stat-box.stat-clickable:active{transform:scale(.98);}
 .stat-n{font-size:22px;font-weight:900;color:var(--g800);line-height:1;}
 .stat-l{font-size:10px;color:var(--g400);margin-top:3px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+.stat-hint{font-size:9px;color:var(--blue);font-weight:700;margin-top:4px;}
+.home-footer{margin-top:20px;padding-top:14px;border-top:1.5px solid var(--g200);text-align:center;}
+.btn-reset{font-size:12px;font-weight:800;color:var(--g500);background:none;border:none;cursor:pointer;text-decoration:underline;font-family:var(--font);}
+.btn-reset:hover{color:var(--red-d);}
+.mistakes-intro{font-size:14px;color:var(--g600);line-height:1.65;margin-bottom:14px;}
+.mistakes-actions{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
+.mistake-topic-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#fff;border:2px solid var(--g200);border-radius:var(--r);padding:12px 14px;}
+.mistake-topic-row .mt-name{font-size:14px;font-weight:800;color:var(--g800);}
+.mistake-topic-row .mt-n{font-size:12px;color:var(--g500);}
+.btn-small{padding:10px 14px;border-radius:var(--rs);border:2px solid var(--blue);background:var(--blue);color:#fff;font-family:var(--font);font-size:13px;font-weight:800;cursor:pointer;}
+.btn-small.outline{background:#fff;color:var(--blue-d);}
 
 .section-hd{font-size:11px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;}
 .topic-list{display:flex;flex-direction:column;gap:7px;}
@@ -320,13 +337,33 @@ details.lesson-details summary::-webkit-details-marker{display:none;}
       </div>
     </div>
     <div class="stats-grid">
-      <div class="stat-box"><div class="stat-n" id="sh-done">0</div><div class="stat-l">Done</div></div>
+      <button type="button" class="stat-box stat-clickable" id="stat-done-btn" title="Review questions you missed">
+        <div class="stat-n" id="sh-done">0</div>
+        <div class="stat-l">Done</div>
+        <div class="stat-hint" id="sh-done-hint">Tap → missed</div>
+      </button>
       <div class="stat-box"><div class="stat-n" id="sh-correct">0</div><div class="stat-l">Correct</div></div>
       <div class="stat-box"><div class="stat-n" id="sh-acc">—</div><div class="stat-l">Accuracy</div></div>
       <div class="stat-box"><div class="stat-n" id="sh-mastered">0</div><div class="stat-l">Mastered</div></div>
     </div>
     <div class="section-hd">Topics — pick where to practice</div>
     <div class="topic-list" id="topic-list"></div>
+    <div class="home-footer">
+      <button type="button" class="btn-reset" id="btn-reset-all">Reset all progress…</button>
+    </div>
+  </div>
+
+  <!-- MISSED QUESTIONS -->
+  <div id="mistakes-scr" class="screen">
+    <div class="screen-hdr">
+      <button class="btn-back" onclick="goHome()">←</button>
+      <div class="screen-title">Missed questions</div>
+    </div>
+    <p class="mistakes-intro" id="mistakes-intro"></p>
+    <div id="mistakes-by-topic"></div>
+    <div class="mistakes-actions">
+      <button type="button" class="btn-main" id="btn-practice-all-missed">Practice all missed</button>
+    </div>
   </div>
 
   <!-- LESSON -->
@@ -1470,7 +1507,7 @@ moneydata: {
 
 const TOPIC_ORDER = ['fractions','decimals','wordproblems','geometry','data','rationals','algebraops','measurement','moneydata'];
 const LETTERS = ['A','B','C','D'];
-const STORAGE_KEY = 'staar_trainer_v2';
+const STORAGE_KEY = 'staar_trainer_v3';
 
 // ---- STATE ----
 let G = {
@@ -1483,15 +1520,19 @@ let G = {
   lesStep: 0,
   // quiz state
   qBank: [],          // shuffled questions for current session
+  qBankTopicKeys: null, // parallel to qBank in "review" mode (which topic each question belongs to)
   qIdx: 0,
   qCorrect: 0,
   qWrong: 0,
   qAnswered: false,
   wrongSkills: [],    // track which skill_areas went wrong this session
+  quizMode: 'normal', // 'normal' | 'review'
+  reviewIsMixed: false,
   // per-topic best scores
   scores: {},         // { topicId: bestPct }
   attempts: {},       // { topicId: count }
-  skillStats: {}      // { topicId: { skillArea: { c:0, w:0 } } }
+  skillStats: {},     // { topicId: { skillArea: { c:0, w:0 } } }
+  wrongQs: {}        // { topicId: [indices in topic.questions] }
 };
 
 // ---- PERSISTENCE ----
@@ -1500,7 +1541,8 @@ function saveState() {
     const saved = {
       xp: G.xp, totalDone: G.totalDone, totalCorrect: G.totalCorrect,
       streak: G.streak, maxStreak: G.maxStreak,
-      scores: G.scores, attempts: G.attempts, skillStats: G.skillStats
+      scores: G.scores, attempts: G.attempts, skillStats: G.skillStats,
+      wrongQs: G.wrongQs
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
   } catch(e) {}
@@ -1508,11 +1550,171 @@ function saveState() {
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    let raw = localStorage.getItem(STORAGE_KEY);
+    let fromLegacy = false;
+    if (!raw) {
+      raw = localStorage.getItem('staar_trainer_v2');
+      fromLegacy = !!raw;
+    }
     if (!raw) return;
     const saved = JSON.parse(raw);
     Object.assign(G, saved);
+    if (!G.wrongQs || typeof G.wrongQs !== 'object') G.wrongQs = {};
+    if (fromLegacy) saveState();
   } catch(e) {}
+}
+
+function countMissedQuestions() {
+  let n = 0;
+  TOPIC_ORDER.forEach(k => {
+    const a = G.wrongQs[k];
+    if (a && a.length) n += a.length;
+  });
+  return n;
+}
+
+function addWrongQuestionIndex(topicKey, qIndex) {
+  if (qIndex < 0) return;
+  if (!G.wrongQs[topicKey]) G.wrongQs[topicKey] = [];
+  if (!G.wrongQs[topicKey].includes(qIndex)) G.wrongQs[topicKey].push(qIndex);
+}
+
+function removeWrongQuestionIndex(topicKey, qIndex) {
+  if (!G.wrongQs[topicKey]) return;
+  G.wrongQs[topicKey] = G.wrongQs[topicKey].filter(i => i !== qIndex);
+  if (G.wrongQs[topicKey].length === 0) delete G.wrongQs[topicKey];
+}
+
+function getTopicForCurrentQuestion() {
+  if (G.quizMode === 'review' && G.qBankTopicKeys && G.qBankTopicKeys.length > G.qIdx) {
+    return G.qBankTopicKeys[G.qIdx];
+  }
+  return G.topic;
+}
+
+function buildMistakeBank() {
+  const bank = [];
+  const keys = [];
+  TOPIC_ORDER.forEach(topicKey => {
+    const idxs = G.wrongQs[topicKey];
+    if (!idxs || !idxs.length) return;
+    idxs.forEach(idx => {
+      const q = TOPICS[topicKey].questions[idx];
+      if (q) {
+        bank.push(q);
+        keys.push(topicKey);
+      }
+    });
+  });
+  return { bank, keys };
+}
+
+function shufflePaired(bank, keys) {
+  const pairs = bank.map((q, i) => ({ q, k: keys[i] }));
+  for (let i = pairs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+  }
+  return {
+    bank: pairs.map(p => p.q),
+    keys: pairs.map(p => p.k)
+  };
+}
+
+function resetAllProgress() {
+  if (!confirm('Reset ALL progress (XP, streak, scores, missed list, and stats)? This cannot be undone.')) return;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('staar_trainer_v2');
+  } catch(e) {}
+  G.xp = 0;
+  G.totalDone = 0;
+  G.totalCorrect = 0;
+  G.streak = 0;
+  G.maxStreak = 0;
+  G.scores = {};
+  G.attempts = {};
+  G.skillStats = {};
+  G.wrongQs = {};
+  saveState();
+  goHome();
+}
+
+function openMistakesScreen() {
+  const n = countMissedQuestions();
+  const intro = document.getElementById('mistakes-intro');
+  const wrap = document.getElementById('mistakes-by-topic');
+  const btnAll = document.getElementById('btn-practice-all-missed');
+  if (n === 0) {
+    intro.textContent = 'You have no saved missed questions yet. When you get a question wrong in any topic quiz, it is saved here so you can practice it again.';
+    wrap.innerHTML = '';
+    btnAll.disabled = true;
+    btnAll.style.opacity = '0.5';
+  } else {
+    intro.textContent = 'These are questions you answered wrong at least once. Practice by topic or all together.';
+    btnAll.disabled = false;
+    btnAll.style.opacity = '1';
+    let html = '';
+    TOPIC_ORDER.forEach(key => {
+      const idxs = G.wrongQs[key];
+      if (!idxs || !idxs.length) return;
+      const t = TOPICS[key];
+      html += `<div class="mistake-topic-row">
+        <div><div class="mt-name">${t.emoji} ${t.name}</div><div class="mt-n">${idxs.length} question${idxs.length === 1 ? '' : 's'}</div></div>
+        <button type="button" class="btn-small" data-topic-review="${key}">Practice</button>
+      </div>`;
+    });
+    wrap.innerHTML = html;
+    wrap.querySelectorAll('[data-topic-review]').forEach(btn => {
+      btn.onclick = () => startTopicReviewQuiz(btn.getAttribute('data-topic-review'));
+    });
+  }
+  showScreen('mistakes-scr');
+}
+
+function startReviewQuizFromBank() {
+  const { bank, keys } = buildMistakeBank();
+  if (bank.length === 0) {
+    alert('No missed questions to practice.');
+    return;
+  }
+  G.quizMode = 'review';
+  G.reviewIsMixed = true;
+  G.topic = TOPIC_ORDER[0];
+  const shuffled = shufflePaired(bank, keys);
+  G.qBank = shuffled.bank;
+  G.qBankTopicKeys = shuffled.keys;
+  G.qIdx = 0;
+  G.qCorrect = 0;
+  G.qWrong = 0;
+  G.qAnswered = false;
+  G.wrongSkills = [];
+  document.getElementById('quiz-title').textContent = 'Missed questions — Review';
+  makePipTrack('quiz-track', G.qBank.length, 0);
+  renderQuestion();
+  showScreen('quiz-scr');
+}
+
+function startTopicReviewQuiz(topicKey) {
+  const idxs = G.wrongQs[topicKey];
+  if (!idxs || !idxs.length) return;
+  G.quizMode = 'review';
+  G.reviewIsMixed = false;
+  G.topic = topicKey;
+  const bank = idxs.map(idx => TOPICS[topicKey].questions[idx]);
+  const keys = idxs.map(() => topicKey);
+  const shuffled = shufflePaired(bank, keys);
+  G.qBank = shuffled.bank;
+  G.qBankTopicKeys = shuffled.keys;
+  G.qIdx = 0;
+  G.qCorrect = 0;
+  G.qWrong = 0;
+  G.qAnswered = false;
+  G.wrongSkills = [];
+  document.getElementById('quiz-title').textContent = TOPICS[topicKey].name + ' — Missed';
+  makePipTrack('quiz-track', G.qBank.length, 0);
+  renderQuestion();
+  showScreen('quiz-scr');
 }
 
 // ---- SCREEN CONTROL ----
@@ -1548,6 +1750,9 @@ function updateHomeUI() {
   document.getElementById('sh-correct').textContent = G.totalCorrect;
   document.getElementById('sh-acc').textContent = G.totalDone > 0 ? acc + '%' : '—';
   document.getElementById('sh-mastered').textContent = mastered + '/' + TOPIC_ORDER.length;
+  const missed = countMissedQuestions();
+  const hint = document.getElementById('sh-done-hint');
+  if (hint) hint.textContent = missed ? ('Tap → ' + missed + ' missed') : 'Tap → missed';
 }
 
 function buildTopicList() {
@@ -1647,6 +1852,9 @@ function shuffleArray(arr) {
 }
 
 function startQuiz() {
+  G.quizMode = 'normal';
+  G.reviewIsMixed = false;
+  G.qBankTopicKeys = null;
   const t = TOPICS[G.topic];
   G.qBank = shuffleArray(t.questions);
   G.qIdx = 0;
@@ -1655,7 +1863,6 @@ function startQuiz() {
   G.qAnswered = false;
   G.wrongSkills = [];
 
-  // increment attempts
   G.attempts[G.topic] = (G.attempts[G.topic] || 0) + 1;
 
   document.getElementById('quiz-title').textContent = t.name + ' — Practice';
@@ -1731,6 +1938,9 @@ function selectAnswer(idx) {
 
   const q = G.qBank[G.qIdx];
   const correct = idx === q.ans;
+  const topicKey = getTopicForCurrentQuestion();
+  const tObj = TOPICS[topicKey];
+  const qIndexInTopic = tObj ? tObj.questions.indexOf(q) : -1;
 
   // Style the options
   const btns = document.querySelectorAll('.opt');
@@ -1739,6 +1949,12 @@ function selectAnswer(idx) {
     else if (i === idx && !correct) b.classList.add('wrong');
     if (i === q.ans && !correct) b.classList.add('reveal');
   });
+
+  if (correct) {
+    if (qIndexInTopic >= 0) removeWrongQuestionIndex(topicKey, qIndexInTopic);
+  } else {
+    if (qIndexInTopic >= 0) addWrongQuestionIndex(topicKey, qIndexInTopic);
+  }
 
   // Update global stats
   G.totalDone++;
@@ -1756,10 +1972,10 @@ function selectAnswer(idx) {
   }
 
   // Track skill stats per topic
-  if (!G.skillStats[G.topic]) G.skillStats[G.topic] = {};
+  if (!G.skillStats[topicKey]) G.skillStats[topicKey] = {};
   const sa = q.skill_area;
-  if (!G.skillStats[G.topic][sa]) G.skillStats[G.topic][sa] = { c: 0, w: 0 };
-  G.skillStats[G.topic][sa][correct ? 'c' : 'w']++;
+  if (!G.skillStats[topicKey][sa]) G.skillStats[topicKey][sa] = { c: 0, w: 0 };
+  G.skillStats[topicKey][sa][correct ? 'c' : 'w']++;
 
   saveState();
 
@@ -1834,13 +2050,20 @@ function nextQ() {
 
 // ---- RESULT SCREEN ----
 function showResult() {
-  const t = TOPICS[G.topic];
+  const isReview = G.quizMode === 'review';
+  const t = isReview
+    ? (G.reviewIsMixed
+        ? { name: 'Missed questions', emoji: '📌' }
+        : TOPICS[G.topic])
+    : TOPICS[G.topic];
   const total = G.qBank.length;
   const pct = Math.round(G.qCorrect / total * 100);
 
-  // Save best score
-  const prevBest = G.scores[G.topic] || 0;
-  if (pct > prevBest) G.scores[G.topic] = pct;
+  let prevBest = 0;
+  if (!isReview) {
+    prevBest = G.scores[G.topic] || 0;
+    if (pct > prevBest) G.scores[G.topic] = pct;
+  }
 
   // Bonus XP
   const bonus = pct >= 90 ? 50 : pct >= 80 ? 30 : pct >= 60 ? 15 : 5;
@@ -1854,25 +2077,33 @@ function showResult() {
   document.getElementById('r-stars').textContent = pct >= 90 ? '⭐⭐⭐' : pct >= 75 ? '⭐⭐' : '⭐';
   document.getElementById('r-title').textContent =
     pct >= 90 ? 'Outstanding!' : pct >= 80 ? 'Excellent work!' : pct >= 60 ? 'Good effort!' : 'Keep practicing!';
-  document.getElementById('r-msg').textContent =
-    G.qCorrect + ' of ' + total + ' correct. ' +
-    (pct >= 80
-      ? 'You\'ve mastered this topic! Try another one.'
-      : pct >= 60
-      ? 'Review the lessons and try again to improve your score.'
-      : 'Go back through the lessons carefully, then retry. You can do this!');
+  document.getElementById('r-msg').textContent = isReview
+    ? (G.qCorrect + ' of ' + total + ' correct. ' +
+        (pct === 100
+          ? 'Great — those questions are removed from your missed list when you get them right!'
+          : 'Keep practicing missed questions until you clear them.'))
+    : (G.qCorrect + ' of ' + total + ' correct. ' +
+        (pct >= 80
+          ? 'You\'ve mastered this topic! Try another one.'
+          : pct >= 60
+          ? 'Review the lessons and try again to improve your score.'
+          : 'Go back through the lessons carefully, then retry. You can do this!'));
 
   document.getElementById('r-xp-n').textContent = '+' + bonus + ' bonus XP!';
-  document.getElementById('r-xp-s').textContent = 'Total XP: ' + G.xp + (pct > prevBest ? ' · New personal best!' : '');
+  document.getElementById('r-xp-s').textContent =
+    'Total XP: ' + G.xp + (!isReview && pct > prevBest ? ' · New personal best!' : '');
 
-  // Breakdown
-  document.getElementById('r-bd').innerHTML = `
-    <div class="bd-row"><span class="bd-k">Topic</span><span class="bd-v">${t.emoji} ${t.name}</span></div>
-    <div class="bd-row"><span class="bd-k">Questions answered</span><span class="bd-v">${total}</span></div>
-    <div class="bd-row"><span class="bd-k">Correct</span><span class="bd-v g">${G.qCorrect}</span></div>
-    <div class="bd-row"><span class="bd-k">Incorrect</span><span class="bd-v ${G.qWrong > 0 ? 'r' : ''}">${G.qWrong}</span></div>
-    <div class="bd-row"><span class="bd-k">Score this round</span><span class="bd-v">${pct}%</span></div>
-    <div class="bd-row"><span class="bd-k">Personal best</span><span class="bd-v">${G.scores[G.topic]}%</span></div>`;
+  const pbRow = isReview
+    ? '<div class="bd-row"><span class="bd-k">Personal best</span><span class="bd-v">—</span></div>'
+    : '<div class="bd-row"><span class="bd-k">Personal best</span><span class="bd-v">' + (G.scores[G.topic] || 0) + '%</span></div>';
+
+  document.getElementById('r-bd').innerHTML =
+    '<div class="bd-row"><span class="bd-k">Topic</span><span class="bd-v">' + t.emoji + ' ' + t.name + '</span></div>' +
+    pbRow +
+    '<div class="bd-row"><span class="bd-k">Questions answered</span><span class="bd-v">' + total + '</span></div>' +
+    '<div class="bd-row"><span class="bd-k">Correct</span><span class="bd-v g">' + G.qCorrect + '</span></div>' +
+    '<div class="bd-row"><span class="bd-k">Incorrect</span><span class="bd-v ' + (G.qWrong > 0 ? 'r' : '') + '">' + G.qWrong + '</span></div>' +
+    '<div class="bd-row"><span class="bd-k">Score this round</span><span class="bd-v">' + pct + '%</span></div>';
 
   // Weakness analysis
   const weakEl = document.getElementById('r-weak');
@@ -1907,6 +2138,11 @@ function showResult() {
 }
 
 function retryTopic() {
+  if (G.quizMode === 'review') {
+    if (G.reviewIsMixed) startReviewQuizFromBank();
+    else startTopicReviewQuiz(G.topic);
+    return;
+  }
   G.lesStep = 0;
   showLessonStep();
 }
@@ -1935,6 +2171,12 @@ function launchConfetti() {
   loadState();
   updateHomeUI();
   buildTopicList();
+  const doneBtn = document.getElementById('stat-done-btn');
+  if (doneBtn) doneBtn.onclick = openMistakesScreen;
+  const resetBtn = document.getElementById('btn-reset-all');
+  if (resetBtn) resetBtn.onclick = resetAllProgress;
+  const allMissed = document.getElementById('btn-practice-all-missed');
+  if (allMissed) allMissed.onclick = startReviewQuizFromBank;
 })();
 
 </script>
