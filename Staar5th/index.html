@@ -157,7 +157,9 @@ body{
 .btn-main.green:hover{background:var(--green-d);}
 
 /* QUIZ */
-.quiz-top{background:var(--blue-l);border:2px solid var(--blue-m);border-radius:var(--r);padding:12px 15px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.quiz-top{background:var(--blue-l);border:2px solid var(--blue-m);border-radius:var(--r);padding:12px 15px;margin-bottom:14px;display:flex;flex-direction:column;gap:8px;}
+.quiz-top-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;width:100%;}
+.quiz-session-stats{font-size:12px;font-weight:700;color:var(--g600);line-height:1.45;padding-top:2px;border-top:1px solid var(--blue-m);}
 .q-label{font-size:12px;font-weight:800;color:var(--blue-d);}
 .q-xp{background:var(--blue);color:#fff;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;}
 .q-text{font-size:17px;font-weight:800;color:var(--g900);line-height:1.55;margin-bottom:16px;animation:slideIn .3s ease;}
@@ -178,6 +180,9 @@ body{
 .opt.wrong .opt-l{background:var(--red);color:#fff;}
 .opt.reveal{border-color:var(--green);background:var(--green-l);color:var(--green-d);}
 .opt.reveal .opt-l{background:var(--green);color:#fff;}
+.opts.opts-locked{pointer-events:none;}
+.opt:disabled:not(.correct):not(.wrong):not(.reveal){opacity:.52;}
+.opt.correct:disabled,.opt.wrong:disabled,.opt.reveal:disabled{opacity:1;}
 .feedback{border-radius:var(--r);padding:14px 16px;margin:10px 0;animation:slideIn .3s ease;font-size:13px;line-height:1.7;}
 .fb-ok{background:var(--green-l);border:2px solid var(--green-m);color:var(--green-d);}
 .fb-ng{background:var(--red-l);border:2px solid var(--red-m);color:var(--red-d);}
@@ -343,8 +348,11 @@ details.lesson-details summary::-webkit-details-marker{display:none;}
     </div>
     <div class="progress-track" id="quiz-track"></div>
     <div class="quiz-top">
-      <span class="q-label" id="q-label">Question 1 of 15</span>
-      <span class="q-xp">+10 XP per correct</span>
+      <div class="quiz-top-row">
+        <span class="q-label" id="q-label">Question 1 of 15</span>
+        <span class="q-xp">+10 XP per correct</span>
+      </div>
+      <div class="quiz-session-stats" id="quiz-session-stats" aria-live="polite"></div>
     </div>
     <div class="q-text" id="q-text"></div>
     <div class="opts" id="q-opts"></div>
@@ -1656,6 +1664,30 @@ function startQuiz() {
   showScreen('quiz-scr');
 }
 
+function updateQuizProgressLine() {
+  const el = document.getElementById('quiz-session-stats');
+  if (!el) return;
+  const total = G.qBank.length;
+  if (G.qAnswered) {
+    const completed = G.qIdx + 1;
+    const c = G.qCorrect;
+    const w = completed - c;
+    el.textContent =
+      'This round: ' + completed + '/' + total + ' answered · ' + c + ' correct · ' + w + ' wrong';
+  } else {
+    const done = G.qIdx;
+    if (done === 0) {
+      el.textContent =
+        'Tap one answer — your choice locks in (you cannot change it).';
+    } else {
+      const c = G.qCorrect;
+      const w = done - c;
+      el.textContent =
+        'So far: ' + done + '/' + total + ' answered · ' + c + ' correct · ' + w + ' wrong';
+    }
+  }
+}
+
 function renderQuestion() {
   const q = G.qBank[G.qIdx];
   G.qAnswered = false;
@@ -1670,20 +1702,32 @@ function renderQuestion() {
 
   const optsEl = document.getElementById('q-opts');
   optsEl.innerHTML = '';
+  optsEl.classList.remove('opts-locked');
   q.opts.forEach((o, i) => {
     const btn = document.createElement('button');
+    btn.type = 'button';
     btn.className = 'opt';
     btn.innerHTML = `<span class="opt-l">${LETTERS[i]}</span>${o}`;
-    btn.onclick = () => selectAnswer(i);
+    btn.addEventListener('click', () => selectAnswer(i), { once: true });
     optsEl.appendChild(btn);
   });
 
   makePipTrack('quiz-track', G.qBank.length, G.qIdx);
+  updateQuizProgressLine();
 }
 
 function selectAnswer(idx) {
   if (G.qAnswered) return;
   G.qAnswered = true;
+
+  const optsWrap = document.getElementById('q-opts');
+  if (optsWrap) {
+    optsWrap.classList.add('opts-locked');
+    optsWrap.querySelectorAll('.opt').forEach(b => {
+      b.disabled = true;
+      b.setAttribute('aria-disabled', 'true');
+    });
+  }
 
   const q = G.qBank[G.qIdx];
   const correct = idx === q.ans;
@@ -1691,7 +1735,6 @@ function selectAnswer(idx) {
   // Style the options
   const btns = document.querySelectorAll('.opt');
   btns.forEach((b, i) => {
-    b.disabled = true;
     if (i === idx && correct) b.classList.add('correct');
     else if (i === idx && !correct) b.classList.add('wrong');
     if (i === q.ans && !correct) b.classList.add('reveal');
@@ -1776,6 +1819,7 @@ function selectAnswer(idx) {
   }
 
   fbEl.innerHTML = fbHtml;
+  updateQuizProgressLine();
   document.getElementById('q-next').disabled = false;
 }
 
