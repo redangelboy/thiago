@@ -209,6 +209,30 @@ body{
 .weakness-alert{background:var(--amber-l);border:2px solid var(--amber-m);border-radius:var(--r);padding:13px 15px;margin:10px 0;font-size:13px;color:var(--amber-d);}
 .weakness-alert strong{display:block;font-weight:800;margin-bottom:3px;}
 
+/* SCRATCH PAD (quiz — draw work / notes) */
+.scratch-pad{
+  margin:14px 0 10px;
+  background:var(--g50);
+  border:1.5px solid var(--g200);
+  border-radius:var(--r);
+  overflow:hidden;
+}
+.scratch-pad-hd{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px;background:#fff;border-bottom:1.5px solid var(--g200);
+}
+.scratch-pad-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--g500);}
+.btn-scratch-clear{
+  font-family:var(--font);font-size:12px;font-weight:800;
+  padding:6px 12px;border-radius:var(--rs);border:1.5px solid var(--g300);
+  background:#fff;color:var(--g700);cursor:pointer;
+}
+.btn-scratch-clear:hover{border-color:var(--blue);color:var(--blue-d);background:var(--blue-l);}
+#scratch-canvas{
+  display:block;width:100%;height:200px;touch-action:none;cursor:crosshair;
+  vertical-align:middle;
+}
+
 /* RESULT */
 .result-ring{width:120px;height:120px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 16px;}
 .ring-great{background:var(--green-l);border:4px solid var(--green);}
@@ -393,6 +417,13 @@ details.lesson-details summary::-webkit-details-marker{display:none;}
     </div>
     <div class="q-text" id="q-text"></div>
     <div class="opts" id="q-opts"></div>
+    <div class="scratch-pad" id="scratch-pad-wrap">
+      <div class="scratch-pad-hd">
+        <span class="scratch-pad-title">Scratch paper — work here</span>
+        <button type="button" class="btn-scratch-clear" id="btn-scratch-clear" title="Erase board">Clear</button>
+      </div>
+      <canvas id="scratch-canvas" aria-label="Drawing area for notes and calculations"></canvas>
+    </div>
     <div id="q-fb"></div>
     <button class="btn-main" id="q-next" onclick="nextQ()" disabled style="margin-top:10px">Next →</button>
   </div>
@@ -1921,6 +1952,11 @@ function renderQuestion() {
 
   makePipTrack('quiz-track', G.qBank.length, G.qIdx);
   updateQuizProgressLine();
+  initScratchPad();
+  fitScratchCanvas();
+  requestAnimationFrame(function () {
+    requestAnimationFrame(fitScratchCanvas);
+  });
 }
 
 function selectAnswer(idx) {
@@ -2147,6 +2183,106 @@ function retryTopic() {
   showLessonStep();
 }
 
+// ---- SCRATCH PAD (finger, Apple Pencil, mouse) ----
+let scratchPadBound = false;
+let scratchDrawing = false;
+
+function fitScratchCanvas() {
+  const canvas = document.getElementById('scratch-canvas');
+  const wrap = document.getElementById('scratch-pad-wrap');
+  if (!canvas || !wrap) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.floor(wrap.clientWidth));
+  const cssH = 200;
+  canvas.style.width = w + 'px';
+  canvas.style.height = cssH + 'px';
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(cssH * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = '#fffef8';
+  ctx.fillRect(0, 0, w, cssH);
+  ctx.strokeStyle = 'rgba(148,163,184,0.28)';
+  ctx.lineWidth = 1;
+  for (let y = 24; y < cssH; y += 24) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 2.5;
+}
+
+function scratchPointerPos(e, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+function initScratchPad() {
+  const canvas = document.getElementById('scratch-canvas');
+  if (!canvas || scratchPadBound) return;
+  scratchPadBound = true;
+
+  const ctx = () => canvas.getContext('2d');
+
+  canvas.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    scratchDrawing = true;
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch (err) {}
+    const c = ctx();
+    const pr = e.pressure != null && e.pressure > 0 ? e.pressure : 0.5;
+    c.lineWidth = Math.max(1.2, 1.5 + pr * 3);
+    const p = scratchPointerPos(e, canvas);
+    c.beginPath();
+    c.moveTo(p.x, p.y);
+  });
+
+  canvas.addEventListener('pointermove', function (e) {
+    if (!scratchDrawing) return;
+    const c = ctx();
+    const pr = e.pressure != null && e.pressure > 0 ? e.pressure : 0.5;
+    c.lineWidth = Math.max(1.2, 1.5 + pr * 3);
+    const p = scratchPointerPos(e, canvas);
+    c.lineTo(p.x, p.y);
+    c.stroke();
+    c.beginPath();
+    c.moveTo(p.x, p.y);
+  });
+
+  function endDraw(e) {
+    if (!scratchDrawing) return;
+    scratchDrawing = false;
+    try {
+      canvas.releasePointerCapture(e.pointerId);
+    } catch (err) {}
+  }
+
+  canvas.addEventListener('pointerup', endDraw);
+  canvas.addEventListener('pointercancel', endDraw);
+
+  const clearBtn = document.getElementById('btn-scratch-clear');
+  if (clearBtn) {
+    clearBtn.onclick = function () {
+      fitScratchCanvas();
+    };
+  }
+
+  let resizeT;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(function () {
+      const quiz = document.getElementById('quiz-scr');
+      if (quiz && quiz.classList.contains('active')) fitScratchCanvas();
+    }, 200);
+  });
+}
+
 // ---- CONFETTI ----
 function launchConfetti() {
   const colors = ['#2563EB','#16A34A','#D97706','#7C3AED','#DC2626','#0D9488','#F59E0B'];
@@ -2177,6 +2313,7 @@ function launchConfetti() {
   if (resetBtn) resetBtn.onclick = resetAllProgress;
   const allMissed = document.getElementById('btn-practice-all-missed');
   if (allMissed) allMissed.onclick = startReviewQuizFromBank;
+  initScratchPad();
 })();
 
 </script>
