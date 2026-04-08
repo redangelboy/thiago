@@ -216,6 +216,8 @@ body{
   border:1.5px solid var(--g200);
   border-radius:var(--r);
   overflow:hidden;
+  overscroll-behavior:none;
+  -webkit-overflow-scrolling:auto;
 }
 .scratch-pad-hd{
   display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
@@ -237,12 +239,28 @@ body{
   background:#fff;color:var(--g700);cursor:pointer;
 }
 .btn-scratch-clear:hover{border-color:var(--blue);color:var(--blue-d);background:var(--blue-l);}
-#scratch-canvas{
-  display:block;width:100%;
+.scratch-canvas-wrap{
+  position:relative;width:100%;
   height:min(42vh,420px);
   min-height:280px;
+  line-height:0;
+}
+#scratch-canvas-bg{
+  position:absolute;left:0;top:0;
+  width:100%;height:100%;
+  display:block;
+  pointer-events:none;
+  z-index:0;
+}
+#scratch-canvas{
+  position:relative;z-index:1;
+  display:block;width:100%;height:100%;
   touch-action:none;
   vertical-align:middle;
+  overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;
+  background:transparent;
 }
 #scratch-canvas.scr-cursor-pen{cursor:crosshair;}
 #scratch-canvas.scr-cursor-erase{cursor:cell;}
@@ -440,7 +458,10 @@ details.lesson-details summary::-webkit-details-marker{display:none;}
           <button type="button" class="btn-scratch-clear" id="btn-scratch-clear" title="Clear whole board">Clear all</button>
         </div>
       </div>
-      <canvas id="scratch-canvas" class="scr-cursor-pen" aria-label="Drawing area for notes and calculations"></canvas>
+      <div class="scratch-canvas-wrap" id="scratch-canvas-wrap">
+        <canvas id="scratch-canvas-bg" width="1" height="1" aria-hidden="true"></canvas>
+        <canvas id="scratch-canvas" class="scr-cursor-pen" aria-label="Drawing area for notes and calculations"></canvas>
+      </div>
     </div>
     <div id="q-fb"></div>
     <button class="btn-main" id="q-next" onclick="nextQ()" disabled style="margin-top:10px">Next →</button>
@@ -2205,6 +2226,8 @@ let scratchDrawing = false;
 let scratchLastX = 0;
 let scratchLastY = 0;
 let scratchMoved = false;
+let scratchPointerId = null;
+let scratchRectCache = null;
 let scratchToolMode = 'pen'; // 'pen' | 'eraser'
 
 function getScratchContext(canvas) {
@@ -2212,35 +2235,64 @@ function getScratchContext(canvas) {
 }
 
 function fitScratchCanvas() {
-  const canvas = document.getElementById('scratch-canvas');
+  const stack = document.getElementById('scratch-canvas-wrap');
+  const bg = document.getElementById('scratch-canvas-bg');
+  const fg = document.getElementById('scratch-canvas');
   const wrap = document.getElementById('scratch-pad-wrap');
-  if (!canvas || !wrap) return;
+  if (!stack || !bg || !fg || !wrap) return;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const w = Math.max(1, Math.floor(wrap.clientWidth));
-  let cssH = Math.floor(canvas.clientHeight);
+  const w = Math.max(1, Math.floor(stack.clientWidth || wrap.clientWidth));
+  let cssH = Math.floor(stack.clientHeight);
   if (!cssH || cssH < 200) cssH = Math.min(420, Math.max(300, Math.floor(window.innerHeight * 0.42)));
-  canvas.style.width = w + 'px';
-  canvas.style.height = cssH + 'px';
-  canvas.width = Math.floor(w * dpr);
-  canvas.height = Math.floor(cssH * dpr);
-  const ctx = getScratchContext(canvas);
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.scale(dpr, dpr);
-  ctx.fillStyle = '#fffef8';
-  ctx.fillRect(0, 0, w, cssH);
-  ctx.strokeStyle = 'rgba(148,163,184,0.28)';
-  ctx.lineWidth = 1;
+  stack.style.minHeight = cssH + 'px';
+  stack.style.height = cssH + 'px';
+  [bg, fg].forEach(function (canvas) {
+    canvas.style.width = w + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+  });
+  const bgCtx = bg.getContext('2d');
+  bgCtx.setTransform(1, 0, 0, 1, 0, 0);
+  bgCtx.scale(dpr, dpr);
+  bgCtx.fillStyle = '#fffef8';
+  bgCtx.fillRect(0, 0, w, cssH);
+  bgCtx.strokeStyle = 'rgba(148,163,184,0.28)';
+  bgCtx.lineWidth = 1;
   for (let y = 24; y < cssH; y += 24) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(w, y);
-    ctx.stroke();
+    bgCtx.beginPath();
+    bgCtx.moveTo(0, y);
+    bgCtx.lineTo(w, y);
+    bgCtx.stroke();
   }
+  const ink = getScratchContext(fg);
+  ink.setTransform(1, 0, 0, 1, 0, 0);
+  ink.scale(dpr, dpr);
+  ink.clearRect(0, 0, w, cssH);
 }
 
 function scratchPointerPos(e, canvas) {
-  const rect = canvas.getBoundingClientRect();
+  const rect = scratchRectCache || canvas.getBoundingClientRect();
   return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+/** If pointerup was missed (common with fast Pencil strokes), close the stroke before starting a new one. */
+function scratchFinishStaleStroke(canvas) {
+  if (!scratchDrawing || !canvas) return;
+  const c = getScratchContext(canvas);
+  const er = scratchToolMode === 'eraser';
+  if (!scratchMoved) {
+    scratchDrawTap(c, scratchLastX, scratchLastY, 0.45, er);
+  }
+  scratchDrawing = false;
+  scratchMoved = false;
+  scratchRectCache = null;
+  if (scratchPointerId != null) {
+    try {
+      canvas.releasePointerCapture(scratchPointerId);
+    } catch (err) {}
+    scratchPointerId = null;
+  }
 }
 
 function scratchStrokeSegment(c, x0, y0, x1, y1, pr, eraser) {
@@ -2329,15 +2381,38 @@ function initScratchPad() {
     return [e];
   }
 
+  function onScratchMove(e) {
+    if (!scratchDrawing) return;
+    if (scratchPointerId != null && e.pointerId !== scratchPointerId) return;
+    if (e.pointerType === 'pen' || e.pointerType === 'touch') e.preventDefault();
+    const c = getScratchContext(canvas);
+    const er = scratchToolMode === 'eraser';
+    ptrList(e).forEach(function (ev) {
+      const pr = ev.pressure != null && ev.pressure > 0 ? ev.pressure : 0.45;
+      const q = scratchPointerPos(ev, canvas);
+      scratchStrokeSegment(c, scratchLastX, scratchLastY, q.x, q.y, pr, er);
+      scratchLastX = q.x;
+      scratchLastY = q.y;
+      scratchMoved = true;
+    });
+  }
+
+  canvas.addEventListener('pointermove', onScratchMove, { passive: false });
+
   canvas.addEventListener(
     'pointerdown',
     function (e) {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       if (e.pointerType === 'pen' || e.pointerType === 'touch') e.preventDefault();
+      scratchFinishStaleStroke(canvas);
+      scratchRectCache = canvas.getBoundingClientRect();
       scratchDrawing = true;
       scratchMoved = false;
+      scratchPointerId = e.pointerId;
       try {
-        canvas.setPointerCapture(e.pointerId);
+        if (e.pointerType === 'touch' || e.pointerType === 'mouse') {
+          canvas.setPointerCapture(e.pointerId);
+        }
       } catch (err) {}
       const p = scratchPointerPos(e, canvas);
       scratchLastX = p.x;
@@ -2346,27 +2421,9 @@ function initScratchPad() {
     { passive: false }
   );
 
-  canvas.addEventListener(
-    'pointermove',
-    function (e) {
-      if (!scratchDrawing) return;
-      if (e.pointerType === 'pen' || e.pointerType === 'touch') e.preventDefault();
-      const c = getScratchContext(canvas);
-      const er = scratchToolMode === 'eraser';
-      ptrList(e).forEach(function (ev) {
-        const pr = ev.pressure != null && ev.pressure > 0 ? ev.pressure : 0.45;
-        const q = scratchPointerPos(ev, canvas);
-        scratchStrokeSegment(c, scratchLastX, scratchLastY, q.x, q.y, pr, er);
-        scratchLastX = q.x;
-        scratchLastY = q.y;
-        scratchMoved = true;
-      });
-    },
-    { passive: false }
-  );
-
   function endDraw(e) {
     if (!scratchDrawing) return;
+    if (scratchPointerId != null && e.pointerId !== scratchPointerId) return;
     const c = getScratchContext(canvas);
     const pr = e.pressure != null && e.pressure > 0 ? e.pressure : 0.45;
     const er = scratchToolMode === 'eraser';
@@ -2375,6 +2432,8 @@ function initScratchPad() {
     }
     scratchDrawing = false;
     scratchMoved = false;
+    scratchRectCache = null;
+    scratchPointerId = null;
     try {
       canvas.releasePointerCapture(e.pointerId);
     } catch (err) {}
@@ -2385,6 +2444,8 @@ function initScratchPad() {
   canvas.addEventListener('lostpointercapture', function () {
     scratchDrawing = false;
     scratchMoved = false;
+    scratchRectCache = null;
+    scratchPointerId = null;
   });
 
   let resizeT;
