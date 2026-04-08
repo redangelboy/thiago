@@ -218,20 +218,34 @@ body{
   overflow:hidden;
 }
 .scratch-pad-hd{
-  display:flex;align-items:center;justify-content:space-between;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:8px;
   padding:8px 12px;background:#fff;border-bottom:1.5px solid var(--g200);
 }
-.scratch-pad-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--g500);}
+.scratch-pad-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--g500);flex:1;min-width:120px;}
+.scratch-tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.scr-tool{
+  font-family:var(--font);font-size:11px;font-weight:800;
+  padding:7px 11px;border-radius:var(--rs);border:2px solid var(--g300);
+  background:#fff;color:var(--g600);cursor:pointer;
+}
+.scr-tool:hover{border-color:var(--blue-m);color:var(--blue-d);}
+.scr-tool.active{border-color:var(--blue);background:var(--blue-l);color:var(--blue-d);}
 .btn-scratch-clear{
   font-family:var(--font);font-size:12px;font-weight:800;
-  padding:6px 12px;border-radius:var(--rs);border:1.5px solid var(--g300);
+  padding:7px 12px;border-radius:var(--rs);border:1.5px solid var(--g300);
   background:#fff;color:var(--g700);cursor:pointer;
 }
 .btn-scratch-clear:hover{border-color:var(--blue);color:var(--blue-d);background:var(--blue-l);}
 #scratch-canvas{
-  display:block;width:100%;height:200px;touch-action:none;cursor:crosshair;
+  display:block;width:100%;
+  height:min(42vh,420px);
+  min-height:280px;
+  touch-action:none;
   vertical-align:middle;
 }
+#scratch-canvas.scr-cursor-pen{cursor:crosshair;}
+#scratch-canvas.scr-cursor-erase{cursor:cell;}
 
 /* RESULT */
 .result-ring{width:120px;height:120px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 16px;}
@@ -417,12 +431,16 @@ details.lesson-details summary::-webkit-details-marker{display:none;}
     </div>
     <div class="q-text" id="q-text"></div>
     <div class="opts" id="q-opts"></div>
-    <div class="scratch-pad" id="scratch-pad-wrap">
+    <div class="scratch-pad" id="scratch-pad-wrap" style="touch-action:none">
       <div class="scratch-pad-hd">
         <span class="scratch-pad-title">Scratch paper — work here</span>
-        <button type="button" class="btn-scratch-clear" id="btn-scratch-clear" title="Erase board">Clear</button>
+        <div class="scratch-tools">
+          <button type="button" class="scr-tool active" id="scr-tool-pen" title="Pen">✏️ Pen</button>
+          <button type="button" class="scr-tool" id="scr-tool-eraser" title="Erase part of drawing">🧽 Eraser</button>
+          <button type="button" class="btn-scratch-clear" id="btn-scratch-clear" title="Clear whole board">Clear all</button>
+        </div>
       </div>
-      <canvas id="scratch-canvas" aria-label="Drawing area for notes and calculations"></canvas>
+      <canvas id="scratch-canvas" class="scr-cursor-pen" aria-label="Drawing area for notes and calculations"></canvas>
     </div>
     <div id="q-fb"></div>
     <button class="btn-main" id="q-next" onclick="nextQ()" disabled style="margin-top:10px">Next →</button>
@@ -767,8 +785,8 @@ decimals: {
             <div class="ex-lbl">Compare 0.7 and 0.68</div>
             <div class="step-list">
               <div class="step-item"><div class="step-circle" style="background:var(--blue)">1</div><div class="step-text">Add zero: 0.70 and 0.68</div></div>
-              <div class="step-item"><div class="step-circle" style="background:var(--blue)">2</div><div class="step-text">Compare tenths: both have 6 → same</div></div>
-              <div class="step-item"><div class="step-circle" style="background:var(--green)">3</div><div class="step-text"><strong>Compare hundredths: 0 vs 8</strong> → Wait, 0.70: tenths=7; 0.68: tenths=6. 7 > 6 so <strong>0.7 > 0.68</strong></div></div>
+              <div class="step-item"><div class="step-circle" style="background:var(--blue)">2</div><div class="step-text">Compare tenths: 7 tenths vs 6 tenths → 7 &gt; 6</div></div>
+              <div class="step-item"><div class="step-circle" style="background:var(--green)">3</div><div class="step-text"><strong>So 0.7 &gt; 0.68.</strong> (If tenths were equal, you would compare hundredths next.)</div></div>
             </div>
           </div>
           <div class="tip">💡 <strong>Never judge by length!</strong> 0.7 has fewer digits than 0.68, but 0.7 is larger. Always compare place by place.</div>
@@ -839,14 +857,14 @@ decimals: {
     { skill:'Subtracting decimals', q:`A plank of wood is 4.5 meters long. A carpenter cuts off 1.375 meters. How much is left?`, opts:['3.125 m','3.875 m','3.25 m','2.875 m'], ans:0, exp:`4.500 − 1.375 = 3.125 meters. Add zeros to 4.5 → 4.500, then subtract carefully with regrouping.`, skill_area:'Subtracting decimals' },
     { skill:'Multiplying decimals', q:`A bag of apples weighs 2.4 pounds. There are 6 bags. What is the total weight?`, opts:['12.4 lbs','14.4 lbs','14.8 lbs','1.44 lbs'], ans:1, exp:`2.4 × 6 = 14.4 pounds. Multiply: 24 × 6 = 144. One decimal place → 14.4.`, skill_area:'Multiplying decimals' },
     { skill:'Multiplying decimals', q:`One gallon of paint costs $12.75. How much would 3.5 gallons cost?`, opts:['$44.25','$44.625','$45.00','$38.25'], ans:1, exp:`12.75 × 3.5: Multiply 1275 × 35 = 44,625. Total decimal places = 2+1 = 3. Place decimal: $44.625.`, skill_area:'Multiplying decimals' },
-    { skill:'Dividing decimals', q:`144 students are divided equally into groups of 0.8... Wait — a ribbon 14.4 cm long is cut into pieces of 0.8 cm each. How many pieces are there?`, opts:['1.8','18','180','0.18'], ans:1, exp:`14.4 ÷ 0.8: Move decimal → 144 ÷ 8 = 18 pieces.`, skill_area:'Dividing decimals' },
+    { skill:'Dividing decimals', q:`A ribbon 14.4 cm long is cut into pieces of 0.8 cm each. How many pieces are there?`, opts:['1.8','18','180','0.18'], ans:1, exp:`14.4 ÷ 0.8: Move decimal → 144 ÷ 8 = 18 pieces.`, skill_area:'Dividing decimals' },
     { skill:'Dividing decimals', q:`A stack of books is 6.3 cm tall. Each book is 0.9 cm thick. How many books are in the stack?`, opts:['5','7','9','63'], ans:1, exp:`6.3 ÷ 0.9: Move decimal → 63 ÷ 9 = 7 books.`, skill_area:'Dividing decimals' },
     { skill:'Powers of 10', q:`What is 3.847 × 1,000?`, opts:['3,847','38.47','384.7','38,470'], ans:0, exp:`Multiplying by 1,000 moves the decimal 3 places to the right: 3.847 → 3847. = 3,847.`, skill_area:'Powers of 10' },
     { skill:'Place value', q:`In the number 0.065, which digit is in the hundredths place?`, opts:['0','6','5','1'], ans:1, exp:`0.065: tenths = 0, hundredths = 6, thousandths = 5. The digit 6 is in the hundredths place.`, skill_area:'Place value' },
     { skill:'Rounding', q:`Round 7.483 to the nearest tenth.`, opts:['7.4','7.5','7.48','7.0'], ans:1, exp:`Look at the hundredths digit: 8 ≥ 5, so round up. 7.4 rounds up to 7.5.`, skill_area:'Rounding' },
     { skill:'Adding decimals', q:`A recipe calls for 0.75 cups of butter, 1.25 cups of sugar, and 0.5 cups of milk. What is the total amount of all ingredients?`, opts:['2.5 cups','2.4 cups','2.75 cups','2.0 cups'], ans:0, exp:`0.75 + 1.25 + 0.50 = 2.50 = 2.5 cups.`, skill_area:'Adding decimals' },
     { skill:'Subtracting decimals', q:`The temperature was 98.6°F in the morning and dropped 3.75 degrees by night. What was the night temperature?`, opts:['94.85°F','95.15°F','94.95°F','95.25°F'], ans:0, exp:`98.60 − 3.75 = 94.85°F. Regroup carefully from the tenths column.`, skill_area:'Subtracting decimals' },
-    { skill:'Multiplying decimals', q:`A car travels at 55.6 miles per hour for 2.5 hours. How far does it travel?`, opts:['138.5 mi','139.0 mi','140.5 mi','136.5 mi'], ans:1, exp:`Wait — 55.6 × 2.5: 556 × 25 = 13,900. Two decimal places → 139.00 = 139 miles.`, skill_area:'Multiplying decimals' },
+    { skill:'Multiplying decimals', q:`A car travels at 55.6 miles per hour for 2.5 hours. How far does it travel?`, opts:['138.5 mi','139.0 mi','140.5 mi','136.5 mi'], ans:1, exp:`55.6 × 2.5: 556 × 25 = 13,900. Two decimal places → 139.00 = 139.0 miles.`, skill_area:'Multiplying decimals' },
     { skill:'Comparing decimals', q:`Which of the following is between 0.6 and 0.7 on a number line?`, opts:['0.72','0.59','0.65','0.71'], ans:2, exp:`0.65 is between 0.60 and 0.70. The other numbers are outside this range: 0.72 > 0.70; 0.59 < 0.60; 0.71 > 0.70.`, skill_area:'Comparing decimals' },
     { skill:'Dividing decimals', q:`Elena earns $9.60 per hour. She worked for some hours and earned $33.60. How many hours did she work?`, opts:['3','3.5','3.6','4'], ans:1, exp:`33.60 ÷ 9.60: Multiply both by 10 → 336 ÷ 96 = 3.5 hours. Check: 9.60 × 3.5 = 33.60 ✓`, skill_area:'Dividing decimals' }
   ]
@@ -952,16 +970,16 @@ wordproblems: {
 
   questions: [
     { skill:'Multi-step', q:`A movie theater has 18 rows with 24 seats each. On Friday, 285 seats were filled. How many seats were empty?`, opts:['147','148','152','432'], ans:0, exp:`Step 1: Total seats = 18 × 24 = 432. Step 2: Empty = 432 − 285 = 147 seats. This is a two-step problem: multiply first, then subtract.`, skill_area:'Multi-step problems' },
-    { skill:'Multi-step', q:`Lena earns $12.50 per hour at her job. She worked 6 hours on Saturday and 4 hours on Sunday. After buying a book for $18.75, how much money does she have left?`, opts:['$106.25','$87.50','$81.25','$93.75'], ans:1, exp:`Total hours: 6+4=10. Earnings: 10×$12.50=$125.00. After book: $125.00−$18.75=$106.25. Wait — check: $106.25. The answer is $106.25.`, skill_area:'Multi-step problems' },
+    { skill:'Multi-step', q:`Lena earns $12.50 per hour at her job. She worked 6 hours on Saturday and 4 hours on Sunday. After buying a book for $18.75, how much money does she have left?`, opts:['$106.25','$87.50','$81.25','$93.75'], ans:0, exp:`Total hours: 6+4=10. Earnings: 10×$12.50=$125.00. After book: $125.00−$18.75=$106.25.`, skill_area:'Multi-step problems' },
     { skill:'Multi-step', q:`A box holds 144 cookies. There are 12 boxes. The cookies are shared equally among 27 students. How many cookies does each student get?`, opts:['56','64','48','72'], ans:1, exp:`Total cookies: 144 × 12 = 1,728. Per student: 1,728 ÷ 27 = 64 cookies each.`, skill_area:'Multi-step problems' },
-    { skill:'Operations', q:`A tank holds 450 gallons of water. Each day, 35 gallons are used. After 8 days, how much water remains in the tank?`, opts:['170 gal','190 gal','170 gal','130 gal'], ans:1, exp:`Used in 8 days: 35 × 8 = 280 gallons. Remaining: 450 − 280 = 170 gallons. Wait — 450−280=170. Answer: 170 gallons.`, skill_area:'Multi-step problems' },
+    { skill:'Operations', q:`A tank holds 450 gallons of water. Each day, 35 gallons are used. After 8 days, how much water remains in the tank?`, opts:['170 gal','190 gal','200 gal','130 gal'], ans:0, exp:`Used in 8 days: 35 × 8 = 280 gallons. Remaining: 450 − 280 = 170 gallons.`, skill_area:'Multi-step problems' },
     { skill:'Estimation', q:`A store sells 3 types of juice: apple for $2.89, orange for $3.15, and grape for $1.98. About how much would 2 of each type cost?`, opts:['About $14','About $16','About $18','About $12'], ans:1, exp:`Estimate each: $2.89≈$3, $3.15≈$3, $1.98≈$2. Total for one of each ≈ $8. Two of each ≈ $16.`, skill_area:'Estimation' },
-    { skill:'Multi-step', q:`A farmer has 3 fields. Field A has 248 corn plants, Field B has 315, and Field C has 207. He harvests them into baskets of 25 plants each. How many full baskets does he get?`, opts:['31','30','31','31'], ans:0, exp:`Total plants: 248+315+207=770. Baskets: 770÷25=30 remainder 20. So 30 full baskets (the extra 20 don't fill a complete basket).`, skill_area:'Multi-step problems' },
+    { skill:'Multi-step', q:`A farmer has 3 fields. Field A has 248 corn plants, Field B has 315, and Field C has 207. He harvests them into baskets of 25 plants each. How many full baskets does he get?`, opts:['30','31','29','32'], ans:0, exp:`Total plants: 248+315+207=770. Baskets: 770÷25=30 remainder 20. So 30 full baskets (the extra 20 don't fill a complete basket).`, skill_area:'Multi-step problems' },
     { skill:'Rate problems', q:`A car travels 65 miles per hour. A bus travels 48 miles per hour. If both start at the same point, how many more miles will the car travel in 3 hours?`, opts:['17 miles','51 miles','171 miles','195 miles'], ans:1, exp:`Car in 3 hours: 65×3=195 miles. Bus in 3 hours: 48×3=144 miles. Difference: 195−144=51 miles more for the car.`, skill_area:'Rate and time problems' },
     { skill:'Fractions in context', q:`A school ordered 15 pizzas, each cut into 8 slices. If 3/4 of all the slices were eaten at lunch, how many slices were left?`, opts:['15','30','45','60'], ans:1, exp:`Total slices: 15×8=120. Eaten: 3/4×120=90. Left: 120−90=30 slices.`, skill_area:'Fractions in context' },
     { skill:'Multi-step', q:`Mr. Torres drove 145.6 miles on Monday, 98.4 miles on Tuesday, and 112.7 miles on Wednesday. He wants to drive a total of 500 miles this week. How many more miles does he need to drive?`, opts:['143.3 mi','144.3 mi','153.3 mi','154.3 mi'], ans:0, exp:`Total so far: 145.6+98.4+112.7=356.7 miles. Remaining: 500.0−356.7=143.3 miles.`, skill_area:'Multi-step problems' },
     { skill:'Equations', q:`Which equation can be used to find the number of weeks (w) it takes to save $180 if you save $15 per week?`, opts:['w = 180 × 15','180 − 15 = w','w = 180 ÷ 15','w + 15 = 180'], ans:2, exp:`You're dividing a total by the weekly amount: w = 180 ÷ 15 = 12 weeks. "How many groups of $15 are in $180" means division.`, skill_area:'Writing equations' },
-    { skill:'Multi-step', q:`A school carnival sold 425 adult tickets at $3.50 each and 680 children's tickets at $1.75 each. What was the total money collected?`, opts:['$2,677.50','$2,677.50','$2,487.50','$3,105.00'], ans:0, exp:`Adults: 425×$3.50=$1,487.50. Children: 680×$1.75=$1,190.00. Total: $1,487.50+$1,190.00=$2,677.50.`, skill_area:'Multi-step problems' },
+    { skill:'Multi-step', q:`A school carnival sold 425 adult tickets at $3.50 each and 680 children's tickets at $1.75 each. What was the total money collected?`, opts:['$2,677.50','$2,587.50','$2,487.50','$3,105.00'], ans:0, exp:`Adults: 425×$3.50=$1,487.50. Children: 680×$1.75=$1,190.00. Total: $1,487.50+$1,190.00=$2,677.50.`, skill_area:'Multi-step problems' },
     { skill:'Rate problems', q:`Tomás types 45 words per minute. His sister types 60 words per minute. How many more words can his sister type in 8 minutes?`, opts:['120 words','105 words','480 words','600 words'], ans:0, exp:`Sister: 60×8=480 words. Tomás: 45×8=360 words. Difference: 480−360=120 more words.`, skill_area:'Rate problems' },
     { skill:'Estimation', q:`Three friends want to split a restaurant bill of $47.85 equally. About how much should each person pay?`, opts:['About $12','About $14','About $16','About $18'], ans:2, exp:`Round $47.85 to $48. $48÷3=$16 per person. The estimate is about $16 each.`, skill_area:'Estimation' },
     { skill:'Multi-step', q:`A swimming pool holds 22,500 gallons when full. Currently it is 3/5 full. A pump adds 150 gallons per hour. How many hours will it take to fill completely?`, opts:['30 hr','50 hr','60 hr','75 hr'], ans:2, exp:`Current water: 3/5×22,500=13,500. Needed: 22,500−13,500=9,000 gallons. Time: 9,000÷150=60 hours.`, skill_area:'Multi-step problems' },
@@ -1176,19 +1194,19 @@ data: {
   questions: [
     { skill:'Reading tables', q:`A survey asked 120 students their favorite lunch. Pizza: 45, Tacos: 32, Sandwiches: 28, Salad: 15. How many more students chose pizza than sandwiches?`, opts:['7','13','17','45'], ans:2, exp:`45 (pizza) − 28 (sandwiches) = 17 more students. "How many more" = subtract the smaller from the larger.`, skill_area:'Reading tables' },
     { skill:'Mean', q:`Five students scored: 88, 92, 76, 95, and 84 on a test. What is the mean score?`, opts:['84','87','88','92'], ans:1, exp:`Sum: 88+92+76+95+84 = 435. Mean = 435÷5 = 87. The average (mean) is 87.`, skill_area:'Mean' },
-    { skill:'Median', q:`Find the median of this data set: 14, 8, 22, 5, 17, 11, 9`, opts:['11','14','11','17'], ans:0, exp:`Order from least to greatest: 5, 8, 9, 11, 14, 17, 22. The middle value (4th of 7) = 11.`, skill_area:'Median' },
-    { skill:'Mode', q:`A store recorded daily sales for one week: $320, $285, $320, $410, $285, $320, $295. What is the mode?`, opts:['$285','$295','$320','$410'], ans:2, exp:`$320 appears 3 times (Monday, Wednesday, Friday). It appears more than any other value, so mode = $320.`, skill_area:'Mode' },
+    { skill:'Median', q:`Find the median of this data set: 14, 8, 22, 5, 17, 11, 9`, opts:['11','14','12','17'], ans:0, exp:`Order from least to greatest: 5, 8, 9, 11, 14, 17, 22. The middle value (4th of 7) = 11.`, skill_area:'Median' },
+    { skill:'Mode', q:`A store recorded daily sales for one week: $320, $285, $320, $410, $285, $320, $295. What is the mode?`, opts:['$285','$295','$320','$410'], ans:2, exp:`$320 appears 3 times — more often than any other amount — so the mode is $320.`, skill_area:'Mode' },
     { skill:'Range', q:`A plant grew these heights over 6 months (cm): 3.2, 5.8, 8.1, 11.4, 15.7, 18.2. What is the range of growth?`, opts:['11.4','15.0','14.5','18.2'], ans:1, exp:`Range = largest − smallest = 18.2 − 3.2 = 15.0 cm.`, skill_area:'Range' },
     { skill:'Bar graph', q:`A bar graph shows students' reading levels: Level 3: 12 students, Level 4: 18 students, Level 5: 25 students, Level 6: 15 students. What fraction of students are at Level 5?`, opts:['1/3','25/70','5/14','1/4'], ans:2, exp:`Total: 12+18+25+15=70. Level 5 fraction: 25/70. Simplify: 25÷5=5, 70÷5=14 → 5/14.`, skill_area:'Bar graphs' },
     { skill:'Mean', q:`A pitcher's ERA (earned runs) over 6 games: 2, 3, 1, 4, 2, 6. What is the mean ERA?`, opts:['2','3','4','3.5'], ans:1, exp:`Sum: 2+3+1+4+2+6=18. Mean = 18÷6 = 3.`, skill_area:'Mean' },
     { skill:'Tables multi-step', q:`The table shows miles driven per day: Mon:85, Tue:92, Wed:78, Thu:105, Fri:90. What is the difference between the mean daily mileage and the maximum single-day mileage?`, opts:['15 mi','5 mi','90 mi','20 mi'], ans:0, exp:`Total: 85+92+78+105+90=450. Mean: 450÷5=90. Maximum: 105. Difference: 105−90=15 miles.`, skill_area:'Tables and mean' },
     { skill:'Line graph', q:`A line graph shows a city's temperature: Jan:32°, Feb:35°, Mar:48°, Apr:62°, May:74°. Which month had the greatest increase in temperature from the previous month?`, opts:['February','March','April','May'], ans:2, exp:`Changes: Feb→Jan: +3°, Mar→Feb: +13°, Apr→Mar: +14°, May→Apr: +12°. April had the largest jump: 62−48=14 degrees.`, skill_area:'Line graphs' },
-    { skill:'Median', q:`Eight students measured the length of a leaf (cm): 6.2, 5.8, 7.1, 6.5, 5.9, 7.4, 6.8, 6.0. What is the median?`, opts:['6.35 cm','6.5 cm','6.2 cm','6.35 cm'], ans:0, exp:`Order: 5.8, 5.9, 6.0, 6.2, 6.5, 6.8, 7.1, 7.4. Even count → average of 4th and 5th: (6.2+6.5)÷2 = 12.7÷2 = 6.35 cm.`, skill_area:'Median (even count)' },
+    { skill:'Median', q:`Eight students measured the length of a leaf (cm): 6.2, 5.8, 7.1, 6.5, 5.9, 7.4, 6.8, 6.0. What is the median?`, opts:['6.35 cm','6.5 cm','6.2 cm','6.45 cm'], ans:0, exp:`Order: 5.8, 5.9, 6.0, 6.2, 6.5, 6.8, 7.1, 7.4. Even count → average of 4th and 5th: (6.2+6.5)÷2 = 12.7÷2 = 6.35 cm.`, skill_area:'Median (even count)' },
     { skill:'Reading data', q:`A pictograph shows books read: Maria=3 symbols, Alex=5 symbols, Rosa=4 symbols, David=2 symbols. Each symbol = 6 books. How many total books did they all read?`, opts:['14','48','56','84'], ans:3, exp:`Total symbols: 3+5+4+2=14. Total books: 14×6=84 books.`, skill_area:'Pictographs' },
     { skill:'Range and mean', q:`Ten quiz scores: 82, 91, 78, 95, 88, 70, 93, 85, 79, 89. What is the range, and how much higher than the lowest score is the mean?`, opts:['Range: 25, mean is 15 higher than lowest','Range: 25, mean is 12 higher than lowest','Range: 15, mean is 15 higher than lowest','Range: 25, mean equals lowest'], ans:0, exp:`Range = max − min = 95 − 70 = 25. Sum = 850, mean = 850 ÷ 10 = 85. Mean is 85 − 70 = 15 points higher than the lowest score (70).`, skill_area:'Range and mean' },
     { skill:'Mode and mean', q:`The values are: 8, 12, 15, 12, 9, 12, 14, 10. What is the mean?`, opts:['11','11.5','12','12.5'], ans:1, exp:`Sum = 8+12+15+12+9+12+14+10 = 92. There are 8 values. Mean = 92 ÷ 8 = 11.5.`, skill_area:'Mean' },
-    { skill:'Stem and leaf', q:`A stem-and-leaf plot shows test scores. Stem 7: leaves 2,5,8. Stem 8: leaves 0,3,3,7. Stem 9: leaves 1,4. What is the median score?`, opts:['83','80','83','85'], ans:0, exp:`Ordered scores: 72,75,78,80,83,83,87,91,94. 9 values → median is the 5th = 83.`, skill_area:'Stem-and-leaf plots' },
-    { skill:'Data interpretation', q:`Scores in a class: 5 students scored 70-79, 12 scored 80-89, 8 scored 90-99, and 2 scored below 70. What percentage of students scored 80 or above?`, opts:['37%','74%','74%','63%'], ans:1, exp:`Students ≥ 80: 12+8=20. Total: 5+12+8+2=27. Percentage: 20/27≈74%. Wait: 20÷27≈0.741=74%.`, skill_area:'Data interpretation' }
+    { skill:'Stem and leaf', q:`A stem-and-leaf plot shows test scores. Stem 7: leaves 2,5,8. Stem 8: leaves 0,3,3,7. Stem 9: leaves 1,4. What is the median score?`, opts:['83','80','84','85'], ans:0, exp:`Ordered scores: 72,75,78,80,83,83,87,91,94. 9 values → median is the 5th = 83.`, skill_area:'Stem-and-leaf plots' },
+    { skill:'Data interpretation', q:`Scores in a class: 5 students scored 70-79, 12 scored 80-89, 8 scored 90-99, and 2 scored below 70. What percentage of students scored 80 or above?`, opts:['37%','74%','56%','81%'], ans:1, exp:`Students ≥ 80: 12+8=20. Total: 5+12+8+2=27. Percentage: 20÷27≈74%.`, skill_area:'Data interpretation' }
   ]
 },
 
@@ -1261,7 +1279,7 @@ rationals: {
     { skill:'Compare', q:`True or false: 4/9 > 0.5`, opts:['True','False','They are equal','Cannot tell'], ans:1, exp:`0.5 = 1/2 = 4.5/9. Since 4/9 < 4.5/9, 4/9 is less than 0.5. False.`, skill_area:'Compare & order rationals' },
     { skill:'Number line', q:`Which point is closer to 2 on a number line: 9/5 or 12/5?`, opts:['9/5','12/5','Same distance','Neither'], ans:0, exp:`9/5 = 1.8 (0.2 from 2). 12/5 = 2.4 (0.4 from 2). 9/5 is closer.`, skill_area:'Number line placement' },
     { skill:'Mixed vs improper', q:`Improper fraction 17/6 as a mixed number is:`, opts:['2⅚','2⅙','3⅙','2⅔'], ans:0, exp:`17÷6 = 2 remainder 5 → 2⅚.`, skill_area:'Mixed vs improper' },
-    { skill:'Order rationals', q:`Put in order from greatest to least: 0.7, 13/20, 3/4`, opts:['3/4, 0.7, 13/20','13/20, 3/4, 0.7','3/4, 13/20, 0.7','0.7, 3/4, 13/20'], ans:2, exp:`13/20=0.65, 3/4=0.75, 0.7. Greatest to least: 0.75, 0.70, 0.65 → 3/4, 0.7, 13/20.`, skill_area:'Compare & order rationals' },
+    { skill:'Order rationals', q:`Put in order from greatest to least: 0.7, 13/20, 3/4`, opts:['3/4, 0.7, 13/20','13/20, 3/4, 0.7','3/4, 13/20, 0.7','0.7, 3/4, 13/20'], ans:0, exp:`13/20=0.65, 3/4=0.75, 0.7. Greatest to least: 0.75, 0.70, 0.65 → 3/4, 0.7, 13/20.`, skill_area:'Compare & order rationals' },
     { skill:'Number line', q:`Between which two whole numbers does 19/4 lie?`, opts:['3 and 4','4 and 5','2 and 3','5 and 6'], ans:1, exp:`19÷4 = 4.75, between 4 and 5.`, skill_area:'Number line placement' }
   ]
 },
@@ -1341,7 +1359,7 @@ algebraops: {
     { skill:'Multiply', q:`What is 234 × 45?`, opts:['10,530','10,430','9,530','11,530'], ans:0, exp:`234 × 45 = 10,530.`, skill_area:'Multi-digit multiply' },
     { skill:'Multiply', q:`What is 408 × 67?`, opts:['27,336','26,336','28,336','25,436'], ans:0, exp:`408 × 67 = 27,336.`, skill_area:'Multi-digit multiply' },
     { skill:'Patterns', q:`Rule: start at 7, add 6 each time. What is the 5th term?`, opts:['31','25','37','19'], ans:0, exp:`Terms: 7, 13, 19, 25, 31 → 5th is 31.`, skill_area:'Patterns' },
-    { skill:'Patterns', q:`Pattern A: start 2, add 5. Pattern B: start 10, add 3. Which is true at position 4?`, opts:['A is greater','B is greater','They are equal','Cannot compare'], ans:1, exp:`A: 2,7,12,17,22 → 4th=17. B: 10,13,16,19 → 4th=19. B is greater.`, skill_area:'Patterns' },
+    { skill:'Patterns', q:`Pattern A: start 2, add 5. Pattern B: start 10, add 3. Which is true at position 4?`, opts:['A is greater','B is greater','They are equal','Cannot compare'], ans:1, exp:`A: 2, 7, 12, 17 → 4th term = 17. B: 10, 13, 16, 19 → 4th term = 19. B is greater.`, skill_area:'Patterns' },
     { skill:'Equations', q:`Solve for n: 4n + 3 = 15`, opts:['n = 2','n = 3','n = 4','n = 5'], ans:1, exp:`4n = 12, n = 3.`, skill_area:'Equations with variables' },
     { skill:'Equations', q:`Which value of x makes 5x = 40 true?`, opts:['6','7','8','9'], ans:2, exp:`40 ÷ 5 = 8, so x = 8.`, skill_area:'Equations with variables' },
     { skill:'Equations', q:`There are n bags with 12 apples each, plus 5 loose apples, for 89 total. Which equation matches?`, opts:['12n + 5 = 89','12n − 5 = 89','n + 12 = 89','12(n + 5) = 89'], ans:0, exp:`12n + 5 = 89 represents bags × 12 plus 5 extra.`, skill_area:'Equations with variables' },
@@ -1522,7 +1540,7 @@ moneydata: {
     { skill:'Frequency', q:`A frequency table: Soccer 12, Basketball 9, Volleyball 7. How many students total?`, opts:['26','27','28','29'], ans:2, exp:`12 + 9 + 7 = 28 students.`, skill_area:'Dot plots & frequency tables' },
     { skill:'Dot plot', q:`From the lesson dot plot (hours 0–4), which value has the most responses?`, opts:['1 hour','2 hours','3 hours','4 hours'], ans:1, exp:`The tallest stack of dots is above 2 hours (3 dots).`, skill_area:'Dot plots & frequency tables' },
     { skill:'Stem plot', q:`Stem 6 | leaves 1, 4, 4, 9 — what is the range of this part of the data?`, opts:['8','13','10','9'], ans:0, exp:`Values 61, 64, 64, 69 → range = 69 − 61 = 8.`, skill_area:'Stem-and-leaf' },
-    { skill:'Stem plot', q:`Stem-and-leaf: Stem 4 | 2 5 8  Stem 5 | 0 3 6. How many values?`, opts:['6','7','8','5'], ans:1, exp:`3 leaves on stem 4 + 3 on stem 5 = 6 values.`, skill_area:'Stem-and-leaf' },
+    { skill:'Stem plot', q:`Stem-and-leaf: Stem 4 | 2 5 8  Stem 5 | 0 3 6. How many values?`, opts:['6','7','8','5'], ans:0, exp:`3 leaves on stem 4 + 3 on stem 5 = 6 values.`, skill_area:'Stem-and-leaf' },
     { skill:'Stem plot', q:`Data: 52, 58, 61, 63, 67, 71, 72. What is the median?`, opts:['61','63','62','67'], ans:1, exp:`7 values — the middle (4th) when ordered is 63.`, skill_area:'Stem-and-leaf' },
     { skill:'PFL', q:`Which pair is “good vs service”?`, opts:['Pizza / delivery fee','Water bottle / pizza','Shoes / shoes','Book / book'], ans:0, exp:`Pizza is a good; paying for delivery is paying for a service (bringing it).`, skill_area:'Personal financial literacy' }
   ]
@@ -1722,8 +1740,8 @@ function startReviewQuizFromBank() {
   G.wrongSkills = [];
   document.getElementById('quiz-title').textContent = 'Missed questions — Review';
   makePipTrack('quiz-track', G.qBank.length, 0);
-  renderQuestion();
   showScreen('quiz-scr');
+  renderQuestion();
 }
 
 function startTopicReviewQuiz(topicKey) {
@@ -1744,8 +1762,8 @@ function startTopicReviewQuiz(topicKey) {
   G.wrongSkills = [];
   document.getElementById('quiz-title').textContent = TOPICS[topicKey].name + ' — Missed';
   makePipTrack('quiz-track', G.qBank.length, 0);
-  renderQuestion();
   showScreen('quiz-scr');
+  renderQuestion();
 }
 
 // ---- SCREEN CONTROL ----
@@ -1898,8 +1916,8 @@ function startQuiz() {
 
   document.getElementById('quiz-title').textContent = t.name + ' — Practice';
   makePipTrack('quiz-track', G.qBank.length, 0);
-  renderQuestion();
   showScreen('quiz-scr');
+  renderQuestion();
 }
 
 function updateQuizProgressLine() {
@@ -1954,9 +1972,7 @@ function renderQuestion() {
   updateQuizProgressLine();
   initScratchPad();
   fitScratchCanvas();
-  requestAnimationFrame(function () {
-    requestAnimationFrame(fitScratchCanvas);
-  });
+  requestAnimationFrame(fitScratchCanvas);
 }
 
 function selectAnswer(idx) {
@@ -2186,6 +2202,14 @@ function retryTopic() {
 // ---- SCRATCH PAD (finger, Apple Pencil, mouse) ----
 let scratchPadBound = false;
 let scratchDrawing = false;
+let scratchLastX = 0;
+let scratchLastY = 0;
+let scratchMoved = false;
+let scratchToolMode = 'pen'; // 'pen' | 'eraser'
+
+function getScratchContext(canvas) {
+  return canvas.getContext('2d', { desynchronized: true, alpha: true }) || canvas.getContext('2d');
+}
 
 function fitScratchCanvas() {
   const canvas = document.getElementById('scratch-canvas');
@@ -2193,12 +2217,13 @@ function fitScratchCanvas() {
   if (!canvas || !wrap) return;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const w = Math.max(1, Math.floor(wrap.clientWidth));
-  const cssH = 200;
+  let cssH = Math.floor(canvas.clientHeight);
+  if (!cssH || cssH < 200) cssH = Math.min(420, Math.max(300, Math.floor(window.innerHeight * 0.42)));
   canvas.style.width = w + 'px';
   canvas.style.height = cssH + 'px';
   canvas.width = Math.floor(w * dpr);
   canvas.height = Math.floor(cssH * dpr);
-  const ctx = canvas.getContext('2d');
+  const ctx = getScratchContext(canvas);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
   ctx.fillStyle = '#fffef8';
@@ -2211,10 +2236,6 @@ function fitScratchCanvas() {
     ctx.lineTo(w, y);
     ctx.stroke();
   }
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = 2.5;
 }
 
 function scratchPointerPos(e, canvas) {
@@ -2222,42 +2243,138 @@ function scratchPointerPos(e, canvas) {
   return { x: e.clientX - rect.left, y: e.clientY - rect.top };
 }
 
+function scratchStrokeSegment(c, x0, y0, x1, y1, pr, eraser) {
+  if (Math.abs(x1 - x0) < 0.08 && Math.abs(y1 - y0) < 0.08) return;
+  const p = pr != null && pr > 0 ? pr : 0.45;
+  c.save();
+  c.lineCap = 'round';
+  c.lineJoin = 'round';
+  if (eraser) {
+    c.globalCompositeOperation = 'destination-out';
+    c.strokeStyle = 'rgba(0,0,0,1)';
+    c.lineWidth = Math.max(14, 18 + p * 14);
+  } else {
+    c.globalCompositeOperation = 'source-over';
+    c.strokeStyle = '#1e293b';
+    c.lineWidth = Math.max(1.3, 1.2 + p * 3.5);
+  }
+  c.beginPath();
+  c.moveTo(x0, y0);
+  c.lineTo(x1, y1);
+  c.stroke();
+  c.restore();
+}
+
+function scratchDrawTap(c, x, y, pr, eraser) {
+  const p = pr != null && pr > 0 ? pr : 0.45;
+  c.save();
+  if (eraser) {
+    c.globalCompositeOperation = 'destination-out';
+    const r = Math.max(9, 11 + p * 10);
+    c.fillStyle = '#000';
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fill();
+  } else {
+    c.globalCompositeOperation = 'source-over';
+    c.fillStyle = '#1e293b';
+    const r = Math.max(1.1, 0.9 + p * 2.2);
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fill();
+  }
+  c.restore();
+}
+
+function syncScratchToolUI() {
+  const pen = document.getElementById('scr-tool-pen');
+  const er = document.getElementById('scr-tool-eraser');
+  const cv = document.getElementById('scratch-canvas');
+  if (pen) pen.classList.toggle('active', scratchToolMode === 'pen');
+  if (er) er.classList.toggle('active', scratchToolMode === 'eraser');
+  if (cv) {
+    cv.classList.remove('scr-cursor-pen', 'scr-cursor-erase');
+    cv.classList.add(scratchToolMode === 'eraser' ? 'scr-cursor-erase' : 'scr-cursor-pen');
+  }
+}
+
 function initScratchPad() {
   const canvas = document.getElementById('scratch-canvas');
   if (!canvas || scratchPadBound) return;
   scratchPadBound = true;
 
-  const ctx = () => canvas.getContext('2d');
+  const penBtn = document.getElementById('scr-tool-pen');
+  const erBtn = document.getElementById('scr-tool-eraser');
+  const clearBtn = document.getElementById('btn-scratch-clear');
+  if (penBtn) {
+    penBtn.onclick = function () {
+      scratchToolMode = 'pen';
+      syncScratchToolUI();
+    };
+  }
+  if (erBtn) {
+    erBtn.onclick = function () {
+      scratchToolMode = 'eraser';
+      syncScratchToolUI();
+    };
+  }
+  if (clearBtn) clearBtn.onclick = function () { fitScratchCanvas(); };
+  syncScratchToolUI();
 
-  canvas.addEventListener('pointerdown', function (e) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    scratchDrawing = true;
-    try {
-      canvas.setPointerCapture(e.pointerId);
-    } catch (err) {}
-    const c = ctx();
-    const pr = e.pressure != null && e.pressure > 0 ? e.pressure : 0.5;
-    c.lineWidth = Math.max(1.2, 1.5 + pr * 3);
-    const p = scratchPointerPos(e, canvas);
-    c.beginPath();
-    c.moveTo(p.x, p.y);
-  });
+  function ptrList(e) {
+    if (typeof e.getCoalescedEvents === 'function') {
+      const list = e.getCoalescedEvents();
+      if (list && list.length) return list;
+    }
+    return [e];
+  }
 
-  canvas.addEventListener('pointermove', function (e) {
-    if (!scratchDrawing) return;
-    const c = ctx();
-    const pr = e.pressure != null && e.pressure > 0 ? e.pressure : 0.5;
-    c.lineWidth = Math.max(1.2, 1.5 + pr * 3);
-    const p = scratchPointerPos(e, canvas);
-    c.lineTo(p.x, p.y);
-    c.stroke();
-    c.beginPath();
-    c.moveTo(p.x, p.y);
-  });
+  canvas.addEventListener(
+    'pointerdown',
+    function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (e.pointerType === 'pen' || e.pointerType === 'touch') e.preventDefault();
+      scratchDrawing = true;
+      scratchMoved = false;
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch (err) {}
+      const p = scratchPointerPos(e, canvas);
+      scratchLastX = p.x;
+      scratchLastY = p.y;
+    },
+    { passive: false }
+  );
+
+  canvas.addEventListener(
+    'pointermove',
+    function (e) {
+      if (!scratchDrawing) return;
+      if (e.pointerType === 'pen' || e.pointerType === 'touch') e.preventDefault();
+      const c = getScratchContext(canvas);
+      const er = scratchToolMode === 'eraser';
+      ptrList(e).forEach(function (ev) {
+        const pr = ev.pressure != null && ev.pressure > 0 ? ev.pressure : 0.45;
+        const q = scratchPointerPos(ev, canvas);
+        scratchStrokeSegment(c, scratchLastX, scratchLastY, q.x, q.y, pr, er);
+        scratchLastX = q.x;
+        scratchLastY = q.y;
+        scratchMoved = true;
+      });
+    },
+    { passive: false }
+  );
 
   function endDraw(e) {
     if (!scratchDrawing) return;
+    const c = getScratchContext(canvas);
+    const pr = e.pressure != null && e.pressure > 0 ? e.pressure : 0.45;
+    const er = scratchToolMode === 'eraser';
+    if (!scratchMoved) {
+      scratchDrawTap(c, scratchLastX, scratchLastY, pr, er);
+    }
     scratchDrawing = false;
+    scratchMoved = false;
     try {
       canvas.releasePointerCapture(e.pointerId);
     } catch (err) {}
@@ -2265,13 +2382,10 @@ function initScratchPad() {
 
   canvas.addEventListener('pointerup', endDraw);
   canvas.addEventListener('pointercancel', endDraw);
-
-  const clearBtn = document.getElementById('btn-scratch-clear');
-  if (clearBtn) {
-    clearBtn.onclick = function () {
-      fitScratchCanvas();
-    };
-  }
+  canvas.addEventListener('lostpointercapture', function () {
+    scratchDrawing = false;
+    scratchMoved = false;
+  });
 
   let resizeT;
   window.addEventListener('resize', function () {
@@ -2279,7 +2393,7 @@ function initScratchPad() {
     resizeT = setTimeout(function () {
       const quiz = document.getElementById('quiz-scr');
       if (quiz && quiz.classList.contains('active')) fitScratchCanvas();
-    }, 200);
+    }, 250);
   });
 }
 
